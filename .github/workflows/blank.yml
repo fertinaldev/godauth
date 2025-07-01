@@ -1,0 +1,41 @@
+name: Session Update
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  update-session:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Parse issue for session update
+        id: parse
+        run: |
+          echo "ISSUE_TITLE=${{ github.event.issue.title }}" >> $GITHUB_ENV
+          echo "ISSUE_BODY=${{ github.event.issue.body }}" >> $GITHUB_ENV
+
+      - name: Update session.txt
+        run: |
+          KEY=$(echo "$ISSUE_TITLE" | cut -d' ' -f1)
+          STATUS=$(echo "$ISSUE_TITLE" | cut -d' ' -f2)
+          if [ -z "$KEY" ] || [ -z "$STATUS" ]; then
+            echo "Başlık hatalı, işlem yapılmadı."
+            exit 0
+          fi
+          # session.txt'yi güncelle
+          awk -v key="$KEY" -v status="$STATUS" '{if($1==key){print key, status}else{print $0}}' session.txt > session2.txt
+          mv session2.txt session.txt
+
+      - name: Commit and push
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Session güncellendi: ${{ github.event.issue.title }}"
+          file_pattern: session.txt
+
+      - name: Close issue
+        uses: peter-evans/close-issue@v3
+        with:
+          issue-number: ${{ github.event.issue.number }}
